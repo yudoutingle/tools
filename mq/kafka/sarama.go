@@ -9,24 +9,10 @@ import (
 )
 
 func BuildConsumerGroupConfig(conf *Config, initial int64, autoCommitEnable bool) (*sarama.Config, error) {
-	kfk := sarama.NewConfig()
-	kfk.Version = sarama.V2_0_0_0
+	kfk := NewKafkaConfig(conf)
 	kfk.Consumer.Offsets.Initial = initial
 	kfk.Consumer.Offsets.AutoCommit.Enable = autoCommitEnable
 	kfk.Consumer.Return.Errors = false
-	if conf.Username != "" || conf.Password != "" {
-		kfk.Net.SASL.Enable = true
-		kfk.Net.SASL.User = conf.Username
-		kfk.Net.SASL.Password = conf.Password
-	}
-	if conf.TLS.EnableTLS {
-		tls, err := newTLSConfig(conf.TLS.ClientCrt, conf.TLS.ClientKey, conf.TLS.CACrt, []byte(conf.TLS.ClientKeyPwd), conf.TLS.InsecureSkipVerify)
-		if err != nil {
-			return nil, err
-		}
-		kfk.Net.TLS.Config = tls
-		kfk.Net.TLS.Enable = true
-	}
 	return kfk, nil
 }
 
@@ -39,15 +25,10 @@ func NewConsumerGroup(conf *sarama.Config, addr []string, groupID string) (saram
 }
 
 func BuildProducerConfig(conf Config) (*sarama.Config, error) {
-	kfk := sarama.NewConfig()
+	kfk := NewKafkaConfig(&conf)
 	kfk.Producer.Return.Successes = true
 	kfk.Producer.Return.Errors = true
 	kfk.Producer.Partitioner = sarama.NewHashPartitioner
-	if conf.Username != "" || conf.Password != "" {
-		kfk.Net.SASL.Enable = true
-		kfk.Net.SASL.User = conf.Username
-		kfk.Net.SASL.Password = conf.Password
-	}
 	switch strings.ToLower(conf.ProducerAck) {
 	case "no_response":
 		kfk.Producer.RequiredAcks = sarama.NoResponse
@@ -64,14 +45,6 @@ func BuildProducerConfig(conf Config) (*sarama.Config, error) {
 		if err := kfk.Producer.Compression.UnmarshalText(bytes.ToLower([]byte(conf.CompressType))); err != nil {
 			return nil, errs.WrapMsg(err, "UnmarshalText failed", "compressType", conf.CompressType)
 		}
-	}
-	if conf.TLS.EnableTLS {
-		tls, err := newTLSConfig(conf.TLS.ClientCrt, conf.TLS.ClientKey, conf.TLS.CACrt, []byte(conf.TLS.ClientKeyPwd), conf.TLS.InsecureSkipVerify)
-		if err != nil {
-			return nil, err
-		}
-		kfk.Net.TLS.Config = tls
-		kfk.Net.TLS.Enable = true
 	}
 	return kfk, nil
 }
